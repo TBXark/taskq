@@ -29,10 +29,10 @@ type Queue[T any] struct {
 	close      atomic.Bool
 }
 
-func NewQueue[T any]() *Queue[T] {
+func NewQueue[T any](size int) *Queue[T] {
 	q := &Queue[T]{
-		taskQueue:  make(chan *Task[T]),
-		retryQueue: make(chan *Task[T]),
+		taskQueue:  make(chan *Task[T], size),
+		retryQueue: make(chan *Task[T], size),
 		quit:       make(chan struct{}),
 	}
 	go q.taskProcessor()

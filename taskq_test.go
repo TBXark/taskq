@@ -9,7 +9,7 @@ import (
 
 // 测试任务正常执行
 func TestTaskSuccess(t *testing.T) {
-	q := NewQueue[string]()
+	q := NewQueue[string](0)
 	defer q.Close()
 
 	taskID, ch := q.SubmitTask(func() (*string, error) {
@@ -33,7 +33,7 @@ func TestTaskSuccess(t *testing.T) {
 func TestTaskRetry(t *testing.T) {
 	var mu sync.Mutex
 	var count int
-	q := NewQueue[string]()
+	q := NewQueue[string](0)
 	defer q.Close()
 
 	taskID, ch := q.SubmitTask(func() (*string, error) {
@@ -61,7 +61,7 @@ func TestTaskRetry(t *testing.T) {
 
 // 测试任务超时机制
 func TestTaskTimeout(t *testing.T) {
-	q := NewQueue[string]()
+	q := NewQueue[string](0)
 	defer q.Close()
 
 	taskID, ch := q.SubmitTask(func() (*string, error) {
@@ -84,7 +84,7 @@ func TestTaskTimeout(t *testing.T) {
 
 // 测试队列关闭操作
 func TestQueueClose(t *testing.T) {
-	q := NewQueue[string]()
+	q := NewQueue[string](1)
 
 	// 提交一个任务
 	taskID1, ch1 := q.SubmitTask(func() (*string, error) {
