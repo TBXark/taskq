@@ -2,6 +2,7 @@ package taskq
 
 import (
 	"errors"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -27,6 +28,7 @@ type Queue[T any] struct {
 	quit       chan struct{}
 	taskId     atomic.Int64
 	close      atomic.Bool
+	wg         sync.WaitGroup
 }
 
 func NewQueue[T any](size int) *Queue[T] {
@@ -35,30 +37,33 @@ func NewQueue[T any](size int) *Queue[T] {
 		retryQueue: make(chan *Task[T], size),
 		quit:       make(chan struct{}),
 	}
+	q.wg.Add(2)
+	go q.retryHandler()
 	go q.taskProcessor()
 	return q
 }
 
-func (q *Queue[T]) taskProcessor() {
-	retryHandler := func() {
-		for {
+func (q *Queue[T]) retryHandler() {
+	defer q.wg.Done()
+	for {
+		select {
+		case task, ok := <-q.retryQueue:
+			if !ok {
+				return
+			}
 			select {
-			case task, ok := <-q.retryQueue:
-				if !ok {
-					return
-				}
-				select {
-				case q.taskQueue <- task:
-				case <-q.quit:
-					return
-				}
+			case q.taskQueue <- task:
 			case <-q.quit:
 				return
 			}
+		case <-q.quit:
+			return
 		}
 	}
-	go retryHandler()
+}
 
+func (q *Queue[T]) taskProcessor() {
+	defer q.wg.Done()
 	for {
 		select {
 		case task, ok := <-q.taskQueue:
@@ -131,8 +136,13 @@ func (q *Queue[T]) SubmitTask(fn func() (*T, error), maxRetries int, timeout tim
 			close(resultChan)
 			return 0, resultChan
 		}
-		q.taskQueue <- task
-		return taskID, resultChan
+		select {
+		case q.taskQueue <- task:
+			return taskID, resultChan
+		case <-q.quit:
+			close(resultChan)
+			return 0, resultChan
+		}
 	}
 }
 
@@ -141,6 +151,7 @@ func (q *Queue[T]) Close() {
 		return
 	}
 	close(q.quit)
+	q.wg.Wait()
 	close(q.taskQueue)
 	close(q.retryQueue)
 }

@@ -14,7 +14,7 @@ A lightweight, generic task queue implementation in Go with support for timeouts
 ## Installation
 
 ```bash
-go get github.com/TBXark/taskq
+go get github.com/TBXark/taskq@latest
 ```
 
 ## Example
@@ -30,7 +30,7 @@ import (
 
 func main() {
     // Create a new queue for string results
-    queue := taskq.NewQueue[string]()
+    queue := taskq.NewQueue[string](0)
     defer queue.Close()
 
     // Submit a task
